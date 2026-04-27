@@ -17,6 +17,17 @@ These files reflect the state of the project at the time of submission and are p
 
 ## Reproducing camera-ready behavior
 
-Each pickle stores actor (and critic, for PPO) state dicts plus reward histories and top-100 hits. They can be loaded with `lisardd.io.load_legacy_pickle()`, which returns a `RunArtifacts` object compatible with the analysis pipeline in `notebooks/02_analyze.ipynb`.
+Each pickle stores actor (and critic, for PPO) state dicts plus reward histories and top-100 hits. They can be loaded with `lisardd.io.load_legacy_pickle()`, which returns the raw run dict; `notebooks/00_regression.ipynb` replays the actor through the cleaned pipeline using the camera-ready sequence and confirms architecture equivalence.
 
-The trained scoring model and target sequences referenced here used a JNK3 sequence whose docking-target alignment is being updated as part of the post-submission Vina validation refresh; the new pipeline standardizes on PDB-derived domain sequences. Predicted pKd values from the new pipeline will differ slightly from the values stored here.
+## Sequence and reward updates in the cleaned pipeline
+
+As part of the post-submission Vina validation refresh, the cleaned pipeline aligns target sequences with the deposited holo PDB structures used for docking, and switches the binding-only reward to the bounded sigmoid formulation that the workshop paper's discussion advocates. New runs in `runs/` will produce trajectories that are not directly comparable to the camera-ready trajectories preserved here.
+
+| Component | Camera-ready (this directory) | Cleaned pipeline (`runs/`) |
+|---|---|---|
+| JNK3 sequence | 423 aa custom range | 353 aa, PDB 3FI2 chain A (kinase domain, with 6 'X' for disordered loop) |
+| gyrA sequence | 875 aa, full UniProt P0AES4 | 493 aa, PDB 1AB4 chain A (59 kDa N-terminal fragment containing the quinolone pocket) |
+| Binding-only reward | `reward_binding_affinity` (raw pKd, unbounded) | `reward_prop_high_binders_diff` (sigmoid-binarized to [0, 1] in the [7, 14] pKd window) |
+| Multi-objective reward | `reward_multi_obj` (uses `prop_high_binders_diff` for the pKd term) | unchanged |
+
+Both sequence sets remain accessible from `lisardd.targets`: `get_sequence(name)` returns the cleaned-pipeline sequence; `get_legacy_sequence(name)` returns the camera-ready sequence. The regression notebook uses the latter to verify actor-architecture compatibility against the camera-ready pickles archived here.

@@ -1,0 +1,11 @@
+runs/
+.pixi/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.ipynb_checkpoints/
+.DS_Store
+.env
+*.pkl.bak
+vina_cache*.pkl

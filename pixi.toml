@@ -1,0 +1,44 @@
+[project]
+name = "lisardd"
+version = "0.1.0"
+description = "Ligand Iterative Sampling for Affinity Refinement and Drug Discovery"
+authors = ["Valentin Badea", "Shyam Chandra", "John Lin"]
+channels = ["conda-forge", "pytorch"]
+platforms = ["linux-64", "osx-arm64", "osx-64"]
+
+[dependencies]
+python = "3.10.*"
+pip = "*"
+numpy = "*"
+pandas = "*"
+scipy = "*"
+matplotlib = "*"
+networkx = "*"
+tqdm = "*"
+pyarrow = "*"
+pyyaml = "*"
+rdkit = "*"
+biopython = "*"
+jupyter = "*"
+ipykernel = "*"
+
+[target.linux-64.dependencies]
+pytorch = { version = ">=2.0", channel = "pytorch" }
+pytorch-cuda = { version = "12.1.*", channel = "pytorch" }
+vina = "*"
+
+[target.osx-arm64.dependencies]
+pytorch = { version = ">=2.0", channel = "pytorch" }
+
+[target.osx-64.dependencies]
+pytorch = { version = ">=2.0", channel = "pytorch" }
+
+[pypi-dependencies]
+torch-geometric = "*"
+meeko = "*"
+
+[tasks]
+smoke = "jupyter execute notebooks/00_smoke.ipynb"
+regression = "jupyter execute notebooks/00_regression.ipynb"
+train = "jupyter execute notebooks/01_train.ipynb"
+train-all = "python scripts/run_all.py"

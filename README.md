@@ -1,35 +1,121 @@
 # LISARDD
-**BMI702 Final Project - MMSc BMI**
 
-**Authors:** Valentin Badea, Shyam Chandra, John Lin
+**Ligand Iterative Sampling for Affinity Refinement and Drug Discovery**
 
-## Description 
+Reinforcement-learning framework for optimizing sampling in the latent space of a pretrained, target-agnostic molecular generative model. Generates candidate molecules that simultaneously optimize multiple drug properties — target-specific binding affinity, drug-likeness (QED), and synthetic accessibility (SA) — through multi-objective reward composition.
 
-This work studies the applicability of the MOLRL framework introduced in Haddad et al. (2025, [1]) to the generation of target-specific high-affinity binders. Following the original architecture in [1], we implement a Latent Reinforcement Learning PPO agent that learns the contours of high-scoring manifolds in the latent space of a target-agnostic molecule generator. We show that this strategy can be applied to the targeted generation of ligands with high affinity towards any given protein, while preserving other chemical properties, such as SA or QED through multi-objective reward optimization. 
+**Authors:** Valentin Badea, Shyam Chandra, John Lin (Department of Biomedical Informatics, Harvard Medical School)
 
-> [1]: R. Haddad, E. E. Litsa, Z. Liu, X. Yu, D. Burkhardt, and G. Bhisetti. Targeted molecular
-generation with latent reinforcement learning. Scientific Reports, 15(1):15202, Apr. 2025. ISSN
-2045-2322. doi: 10.1038/s41598-025-99785-0. Publisher: Nature Publishing Group
+**Paper:** *Ligand Iterative Sampling for Affinity Refinement and Drug Discovery (LISARDD)*, Workshop on Generative AI for Biology, ICML 2025. PMLR 267.
+
+## Why this exists
+
+Targeted de novo drug generation typically requires either expensive conditional retraining or hand-crafted scoring heuristics. LISARDD frames generation as a reinforcement-learning problem: an agent learns to perturb latent vectors of a frozen, target-agnostic generator (HierVAE) to maximize a reward function. Target specificity adapts at training time — no retraining the generator. The framework is fully modular: any generator, scoring model, or RL algorithm can plug in as long as it implements the documented contracts in `lisardd/generators/base.py` and `lisardd/scoring/base.py`.
+
+We evaluate two RL algorithms (PPO and REINFORCE) on two protein targets (human JNK3 and *E. coli* gyrA) using a Davis-trained MGraphDTA scoring model, with external validation through AutoDock Vina docking.
+
+## Quick start
+
+```bash
+git clone https://github.com/SSC9/LISARDD
+cd LISARDD
+pixi install
+pixi run smoke         # ~3-5 min end-to-end wiring check
+pixi run train         # one full training run; edit notebooks/01_train.ipynb config first
+```
+
+Or use the notebooks directly in JupyterLab after `pixi shell`:
+
+| Notebook | Purpose |
+|---|---|
+| `notebooks/00_smoke.ipynb` | 3–5 min end-to-end wiring test (smoke mode: 5 epochs, batch=8). |
+| `notebooks/00_regression.ipynb` | Loads a camera-ready pickle and replays its actor through the cleaned pipeline; verifies architecture/protocol equivalence. |
+| `notebooks/01_train.ipynb` | One full training run, configurable at the top. Saves to `runs/<run_name>/`. |
 
 ## Architecture
-> * **Molecule generator**: HierVAE (see: https://github.com/wengong-jin/hgraph2graph) a hierarchical molecular generative model using structural motifs. 
-> * **Binding Affinity model**: MGraphDTA (see: https://github.com/guaguabujianle/MGraphDTA) a GNN for explainable Drug-Target affinity prediction. 
-> * **PPO agent**: see [1] for implementation details. We reconstructed from the paper description, the actor-critic agent architecture.
 
-Overall, this is a tentative architecture, based on what we perceived to be the best models at the time we completed this work. We encourage you to make use of our modular framework and adapt it to better-suited models. 
+| Component | Implementation |
+|---|---|
+| Generator | HierVAE pretrained on ChEMBL ([Jin et al. 2020](https://github.com/wengong-jin/hgraph2graph)) with the recovered vocab from [bsaldivaremc2's fork](https://github.com/bsaldivaremc2/hgraph2graph) addressing [issue #47](https://github.com/wengong-jin/hgraph2graph/issues/47). Wrapped in `lisardd.generators.HierVAEGenerator`. |
+| Scorer | MGraphDTA trained on Davis ([Yang et al. 2022](https://github.com/guaguabujianle/MGraphDTA)). Wrapped in `lisardd.scoring.MGraphDTAScorer`. |
+| Agents | Actor-critic PPO with clipped surrogate loss + GAE (γ=0.95); REINFORCE with learnable Gaussian policy. Networks are 3-layer MLPs (BatchNorm + ReLU). See `lisardd.agents`. |
+| Rewards | QED, SA, raw pKd, binarized-and-differentiable pKd, multi-objective composition (default w₁=w₂=0.1). See `lisardd.rewards`. |
+| Targets | JNK3 (PDB 3FI2) and *E. coli* gyrA (UniProt P0AES4). Sequences in `lisardd.targets`. |
+| Validation | AutoDock Vina with site-targeted box derived from holo-PDB bound-ligand centroid. See `lisardd.validation.vina` (Stage 6 — being built out). |
 
-## Results
+## Repo layout
 
-Rewards tested include SA, QED, MGraphDTA binding affinity and a multi-objective reward based on all the above. 
+```
+LISARDD/
+├── lisardd/                                  # importable package
+│   ├── agents/         # Actor, Critic, train_ppo, train_reinforce
+│   ├── generators/     # HierVAEGenerator + base contract
+│   ├── scoring/        # MGraphDTAScorer + base contract
+│   ├── decoding/       # safe_decode_batch (try/batch -> per-sample fallback)
+│   ├── rewards.py      # paper-aligned reward factories
+│   ├── targets.py      # JNK3, gyrA sequences
+│   ├── config.py       # ExperimentConfig dataclass
+│   ├── runner.py       # run_experiment(config) entrypoint
+│   ├── io.py           # save_run / load_run / load_legacy_pickle
+│   ├── analyze.py      # plot_ppo_vs_reinforce, paired t-test
+│   ├── instrumentation.py
+│   └── validation/     # Vina site-targeted docking pipeline
+├── notebooks/          # 00_smoke, 00_regression, 01_train (+ 02, 03 in follow-up)
+├── runs/               # gitignored; one subdirectory per training run
+├── scripts/            # batch runners (added in follow-up)
+├── data/               # ChEMBL training data + recovered_vocab_2000.txt
+├── hgraph/             # HierVAE source (upstream)
+├── vae_model/          # HierVAE checkpoint
+├── score_model.py      # MGraphDTA architecture (upstream)
+├── score_model_weights/# MGraphDTA checkpoint
+├── ICML_2025_Workshop_Submission_Artifacts/  # camera-ready provenance
+├── pixi.toml           # cross-platform reproducible environment
+└── README.md
+```
 
-Over a 100-200 epochs, our RL framework shows significant improvements of all the above metrics, taken individually or all together in a multi-objective reward objective, suggesting that our PPO agent learns chemically relevant high-scoring manifolds in HierVAE molecular latent spaces. In particular, we found that switching from the simple maximization of the predicted binding affinity to the proportion of high-affinity binders within a batch helped the agent discover better ligand candidates with sensible chemical structures. 
+## Modularity contract
 
-## Repo structure: 
+Plug in a different generative model by writing a class with these attributes/methods (no abstract base class enforcement — duck typing):
 
-> * **data**: This folder contains the ChEMBL data used for HierVAE training. More importantly, it contains a vocabulary of structural motifs which are essential to decode molecules. 
-> * **hgraph**: This folder contains the Python scripts necessary to define and run HierVAE. 
-> * **vae_model**: This folder contains the weights of the trained molecular VAE. 
-> * **model.py**: This Python scripts is necessary to define and run MGraphDTA. 
-> * **score_model_weights**: This folder contains the weights of the scoring model. 
-> * **LISARDD.ipynb** contains our main notebook with our PPO agent training and minimal visualizations of model performance. 
-> * **Binding Affinity Scores Pipeline (Validation)** contains our validation pipeline with Vienna on two binding tasks (Streptavidin and CDK2). 
+```python
+class MyGenerator:
+    latent_dim: int
+    decoder                      # passed to safe_decode_batch
+    def sample_prior(self, n) -> Tensor   # (n, 3*latent_dim)
+    def decode(self, z, greedy, max_decode_step) -> tuple[list[str|None], list[bool]]
+```
+
+Same for scorers:
+
+```python
+class MyScorer:
+    target_protein: str
+    def score(self, smiles: list[str]) -> Tensor   # (n,) predicted pKd
+```
+
+That's the entire interface. See `lisardd/generators/hiervae_wrapper.py` and `lisardd/scoring/mgraphdta_wrapper.py` for reference implementations.
+
+## Known limitations
+
+- **Davis dataset coverage.** MGraphDTA was trained on Davis (442 kinase proteins × 68 ligands). Predictions for kinase targets such as JNK3 are in-distribution. Predictions for non-kinase targets such as *E. coli* gyrA (a topoisomerase) are out-of-distribution; pKd values for gyrA should be interpreted accordingly. AutoDock Vina external validation partially mitigates. Future work: retrain MGraphDTA on a more diverse dataset (BindingDB, KIBA) for better cross-family generalization. The modular `MGraphDTAScorer` accepts any compatible checkpoint via `ckpt_path`, so a swap is one line of config.
+
+- **Per-epoch slowdown during PPO training.** As the policy drifts the latent distribution off N(0, I), HierVAE's decoder raises KeyError on unseen (motif, anchor) vocab pairs at increasing rate. The current `safe_decode_batch` catches the exception and falls back to per-sample decoding, which is correct but quadratically slow as failure rate climbs. A multiprocessing decode pool addressing this is in the planned follow-up. Not a vocab insufficiency issue — the recovered_vocab_2000.txt fix is already applied.
+
+- **Vina box derivation.** The post-submission Vina pipeline standardizes on a holo-PDB-derived ligand-centroid box (vs. the camera-ready 20³Å box at coordinates [8.56, 35.87, 12.02] applied to the JNK3 apo PDB). Stage 6 work in progress.
+
+## Citation
+
+```bibtex
+@inproceedings{badea2025lisardd,
+  title={Ligand Iterative Sampling for Affinity Refinement and Drug Discovery (LISARDD)},
+  author={Badea, Valentin and Chandra, Shyam and Lin, John},
+  booktitle={Workshop on Generative AI for Biology at the 42nd International Conference on Machine Learning},
+  series={Proceedings of Machine Learning Research},
+  volume={267},
+  year={2025},
+}
+```
+
+## License
+
+See [LICENSE](./LICENSE).

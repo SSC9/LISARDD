@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Ligand Iterative Sampling for Affinity Refinement and Drug Discovery"
 authors = ["Valentin Badea", "Shyam Chandra", "John Lin"]
 channels = ["conda-forge", "pytorch"]
-platforms = ["linux-64", "osx-arm64", "osx-64"]
+platforms = ["osx-arm64", "osx-64"]
 
 [dependencies]
 python = "3.10.*"
@@ -23,8 +23,9 @@ jupyter = "*"
 ipykernel = "*"
 
 [target.linux-64.dependencies]
-pytorch = { version = ">=2.0", channel = "pytorch" }
-pytorch-cuda = { version = "12.1.*", channel = "pytorch" }
+# pytorch-cuda removed: libcublas 12.1.* no longer resolvable in pytorch channel
+# pytorch = { version = ">=2.0", channel = "pytorch" }
+# pytorch-cuda = { version = "12.1.*", channel = "pytorch" }
 vina = "*"
 
 [target.osx-arm64.dependencies]

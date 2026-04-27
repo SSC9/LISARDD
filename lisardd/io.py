@@ -12,6 +12,7 @@ Camera-ready legacy pickles are loadable via load_legacy_pickle() for
 the regression notebook's actor-equivalence checks.
 """
 
+import io as _io
 import json
 import pickle
 import platform
@@ -108,6 +109,15 @@ def load_run(run_dir: str | Path, load_state: bool = True, device: str = "cpu") 
     )
 
 
+class _CpuMapUnpickler(pickle.Unpickler):
+    """Remap CUDA tensors embedded in legacy pickles to CPU so they load on any machine."""
+    def find_class(self, module, name):
+        if module == "torch.storage" and name == "_load_from_bytes":
+            import torch
+            return lambda b: torch.load(_io.BytesIO(b), map_location="cpu", weights_only=False)
+        return super().find_class(module, name)
+
+
 def load_legacy_pickle(path: str | Path) -> dict:
     with open(path, "rb") as f:
-        return pickle.load(f)
+        return _CpuMapUnpickler(f).load()

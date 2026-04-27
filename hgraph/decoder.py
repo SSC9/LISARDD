@@ -22,12 +22,12 @@ class HierMPNDecoder(nn.Module):
         self.embed_size = embed_size
         self.latent_size = latent_size
         self.use_attention = attention
-        self.itensor = torch.LongTensor([]).cuda()
+        self.register_buffer('itensor', torch.LongTensor([]), persistent=False)
+        self.register_buffer('E_order', torch.eye(MolGraph.MAX_POS), persistent=False)
 
         self.hmpn = IncHierMPNEncoder(vocab, avocab, rnn_type, embed_size, hidden_size, depthT, depthG, dropout)
         self.rnn_cell = self.hmpn.tree_encoder.rnn
-        self.E_assm = self.hmpn.E_i 
-        self.E_order = torch.eye(MolGraph.MAX_POS).cuda()
+        self.E_assm = self.hmpn.E_i
 
         self.topoNN = nn.Sequential(
                 nn.Linear(hidden_size + latent_size, hidden_size),
@@ -292,8 +292,9 @@ class HierMPNDecoder(nn.Module):
         src_root_vecs, src_tree_vecs, src_graph_vecs = src_mol_vecs
         batch_size = len(src_root_vecs)
 
-        tree_batch = IncTree(batch_size, node_fdim=2, edge_fdim=3)
-        graph_batch = IncGraph(self.avocab, batch_size, node_fdim=self.hmpn.atom_size, edge_fdim=self.hmpn.atom_size + self.hmpn.bond_size)
+        _device = self.itensor.device
+        tree_batch = IncTree(batch_size, node_fdim=2, edge_fdim=3, device=_device)
+        graph_batch = IncGraph(self.avocab, batch_size, node_fdim=self.hmpn.atom_size, edge_fdim=self.hmpn.atom_size + self.hmpn.bond_size, device=_device)
         stack = [[] for i in range(batch_size)]
 
         init_vecs = src_root_vecs if self.latent_size == self.hidden_size else self.W_root(src_root_vecs)

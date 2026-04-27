@@ -138,7 +138,7 @@ def train_ppo(
         loss_critic_list.append(loss_critic.item())
         average_obj_scores.append(avg_obj_score)
 
-        best_latent_vectors.extend(s_prev.detach().tolist())
+        best_latent_vectors.extend(states_t[:, :, t_steps].detach().tolist())
         best_rewards.extend(un_norm_rewards.detach().tolist())
         sorted_idx = np.argsort(best_rewards)
         best_latent_vectors = [best_latent_vectors[i] for i in sorted_idx][-n_top:]

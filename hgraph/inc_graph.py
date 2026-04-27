@@ -7,13 +7,15 @@ from collections import defaultdict
 
 class IncBase(object):
 
-    def __init__(self, batch_size, node_fdim, edge_fdim, max_nodes=100, max_edges=200, max_nb=12):
+    def __init__(self, batch_size, node_fdim, edge_fdim, max_nodes=100, max_edges=200, max_nb=12, device=None):
         self.max_nb = max_nb
         self.graph = nx.DiGraph()
         self.graph.add_node(0) #make sure node is 1 index
         self.edge_dict = {None : 0} #make sure edge is 1 index
 
-        self.fnode = torch.zeros(max_nodes * batch_size, node_fdim).long().cuda()
+        self.fnode = torch.zeros(max_nodes * batch_size, node_fdim).long()
+        if device is not None:
+            self.fnode = self.fnode.to(device)
         self.fmess = self.fnode.new_zeros(max_edges * batch_size, edge_fdim)
         self.agraph = self.fnode.new_zeros(max_edges * batch_size, max_nb)
         self.bgraph = self.fnode.new_zeros(max_edges * batch_size, max_nb)
@@ -55,8 +57,8 @@ class IncBase(object):
 
 class IncTree(IncBase):
 
-    def __init__(self, batch_size, node_fdim, edge_fdim, max_nodes=100, max_edges=200, max_nb=12, max_sub_nodes=20):
-        super(IncTree, self).__init__(batch_size, node_fdim, edge_fdim, max_nodes, max_edges, max_nb)
+    def __init__(self, batch_size, node_fdim, edge_fdim, max_nodes=100, max_edges=200, max_nb=12, max_sub_nodes=20, device=None):
+        super(IncTree, self).__init__(batch_size, node_fdim, edge_fdim, max_nodes, max_edges, max_nb, device=device)
         self.cgraph = self.fnode.new_zeros(max_nodes * batch_size, max_sub_nodes)
 
     def get_tensors(self):
@@ -88,8 +90,8 @@ class IncTree(IncBase):
 
 class IncGraph(IncBase):
 
-    def __init__(self, avocab, batch_size, node_fdim, edge_fdim, max_nodes=100, max_edges=300, max_nb=10):
-        super(IncGraph, self).__init__(batch_size, node_fdim, edge_fdim, max_nodes, max_edges, max_nb)
+    def __init__(self, avocab, batch_size, node_fdim, edge_fdim, max_nodes=100, max_edges=300, max_nb=10, device=None):
+        super(IncGraph, self).__init__(batch_size, node_fdim, edge_fdim, max_nodes, max_edges, max_nb, device=device)
         self.avocab = avocab
         self.mol = Chem.RWMol()
         self.mol.AddAtom( Chem.Atom('C') ) #make sure node is 1 index, consistent to self.graph
@@ -197,7 +199,7 @@ class IncGraph(IncBase):
         f = torch.zeros(self.avocab.size())
         symbol, charge = atom.GetSymbol(), atom.GetFormalCharge()
         f[ self.avocab[(symbol,charge)] ] = 1
-        return f.cuda()
+        return f.to(self.fnode.device)
 
     def get_mess_feature(self, atom, bond_type, nth_child):
         f1 = torch.zeros(self.avocab.size())
@@ -207,7 +209,7 @@ class IncGraph(IncBase):
         f1[ self.avocab[(symbol,charge)] ] = 1
         f2[ MolGraph.BOND_LIST.index(bond_type) ] = 1
         f3[ nth_child ] = 1
-        return torch.cat( [f1,f2,f3], dim=-1 ).cuda()
+        return torch.cat( [f1,f2,f3], dim=-1 ).to(self.fnode.device)
 
     def get_assm_cands(self, cluster, used, smiles):
         emol = get_mol(smiles)

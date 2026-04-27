@@ -50,6 +50,9 @@ class HierVAEGenerator:
         model.load_state_dict(state[0] if isinstance(state, (list, tuple)) else state)
         model.eval()
 
+        # Move vocab mask to the same device as the model (PairVocab only handles cuda=True/False)
+        vocab.mask = vocab.mask.to(device)
+
         self.vocab = vocab
         self.model = model
         self.decoder = model.decoder

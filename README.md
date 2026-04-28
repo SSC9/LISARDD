@@ -103,6 +103,8 @@ That's the entire interface. See `lisardd/generators/hiervae_wrapper.py` and `li
 
 - **Vina box derivation.** The post-submission Vina pipeline standardizes on a holo-PDB-derived ligand-centroid box (vs. the camera-ready 20³Å box at coordinates [8.56, 35.87, 12.02] applied to the JNK3 apo PDB). Stage 6 work in progress.
 
+- **PPO reward target update vs camera-ready.** The cleaned PPO implementation (`lisardd/agents/ppo.py`) decodes the post-action state `s_{t+1}` for reward computation; the camera-ready code decoded the pre-action state `s_t`. This aligns the reward with the standard TD credit-assignment form. The empirical effect on the PPO vs REINFORCE comparison is being evaluated; until the new 8-run sweep completes, treat trajectories from the cleaned pipeline as not directly comparable to the camera-ready Figure 3 PPO curves. See `ICML_2025_Workshop_Submission_Artifacts/README.md` for the full delta.
+
 ## Citation
 
 ```bibtex

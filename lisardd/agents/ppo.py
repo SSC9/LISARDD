@@ -71,10 +71,15 @@ def train_ppo(
             actions_t[:, :, t] = a_t
             old_log_probs_t[:, t] = dist.log_prob(a_t)
             s_t_next = s_prev + a_t
-            v_phi[:, t] = critic(s_prev).squeeze()
+            v_phi[:, t] = critic(s_prev).squeeze()  # V(s_t)
 
-            s_chunks = torch.chunk(s_prev, 3, dim=1)
-            smiles_batch, valid = safe_decode_batch(decoder, s_chunks, greedy=greedy)
+            # Decode the post-action state s_{t+1} so the reward is computed for the
+            # latent the action produced. The camera-ready code decoded s_prev (= s_t);
+            # this update aligns r_t with r(s_{t+1}), matching the standard TD form
+            # A_t = r_{t+1} + gamma V(s_{t+1}) - V(s_t). Whether this materially
+            # changes the PPO vs REINFORCE comparison is being evaluated empirically.
+            s_next_chunks = torch.chunk(s_t_next, 3, dim=1)
+            smiles_batch, valid = safe_decode_batch(decoder, s_next_chunks, greedy=greedy)
             valid_smiles = [s for s, v in zip(smiles_batch, valid) if v]
             valid_mask = torch.tensor(valid, device=device, dtype=torch.bool)
             n_invalid_ep += int((~valid_mask).sum().item())
@@ -138,7 +143,10 @@ def train_ppo(
         loss_critic_list.append(loss_critic.item())
         average_obj_scores.append(avg_obj_score)
 
-        best_latent_vectors.extend(states_t[:, :, t_steps].detach().tolist())
+        # Pair the last decoded latent with un_norm_rewards from the same iteration.
+        # With the post-action decode update above, un_norm_rewards now corresponds
+        # to s_prev (post-loop = final s_t_next), not states_t[:, :, t_steps].
+        best_latent_vectors.extend(s_prev.detach().tolist())
         best_rewards.extend(un_norm_rewards.detach().tolist())
         sorted_idx = np.argsort(best_rewards)
         best_latent_vectors = [best_latent_vectors[i] for i in sorted_idx][-n_top:]

@@ -29,5 +29,6 @@ As part of the post-submission Vina validation refresh, the cleaned pipeline ali
 | gyrA sequence | 875 aa, full UniProt P0AES4 | 493 aa, PDB 1AB4 chain A (59 kDa N-terminal fragment containing the quinolone pocket) |
 | Binding-only reward | `reward_binding_affinity` (raw pKd, unbounded) | `reward_prop_high_binders_diff` (sigmoid-binarized to [0, 1] in the [7, 14] pKd window) |
 | Multi-objective reward | `reward_multi_obj` (uses `prop_high_binders_diff` for the pKd term) | unchanged |
+| PPO reward target | Decoded the pre-action state `s_t`; with the camera-ready `t_steps=1` setting, the reward computed at the final rollout step (the only post-action decode) was not stored. | Decodes the post-action state `s_{t+1}`. `r_t` is computed for the latent the action produced, matching the TD form `A_t = r_{t+1} + γV(s_{t+1}) − V(s_t)`. Empirical effect on the PPO vs REINFORCE comparison is under evaluation. |
 
 Both sequence sets remain accessible from `lisardd.targets`: `get_sequence(name)` returns the cleaned-pipeline sequence; `get_legacy_sequence(name)` returns the camera-ready sequence. The regression notebook uses the latter to verify actor-architecture compatibility against the camera-ready pickles archived here.

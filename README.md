@@ -36,11 +36,11 @@ Or use the notebooks directly in JupyterLab after `pixi shell`:
 
 | Component | Implementation |
 |---|---|
-| Generator | HierVAE pretrained on ChEMBL ([Jin et al. 2020](https://github.com/wengong-jin/hgraph2graph)) with the recovered vocab from [bsaldivaremc2's fork](https://github.com/bsaldivaremc2/hgraph2graph) addressing [issue #47](https://github.com/wengong-jin/hgraph2graph/issues/47). Wrapped in `lisardd.generators.HierVAEGenerator`. |
-| Scorer | MGraphDTA trained on Davis ([Yang et al. 2022](https://github.com/guaguabujianle/MGraphDTA)). Wrapped in `lisardd.scoring.MGraphDTAScorer`. |
-| Agents | Actor-critic PPO with clipped surrogate loss + GAE (γ=0.95); REINFORCE with learnable Gaussian policy. Networks are 3-layer MLPs (BatchNorm + ReLU). See `lisardd.agents`. |
+| Generator | HierVAE (Jin et al. 2020) — a hierarchical motif-based VAE — pretrained on ChEMBL. Imported from the upstream [`hgraph2graph`](https://github.com/wengong-jin/hgraph2graph) codebase. Vocab is `recovered_vocab_2000.txt` from [bsaldivaremc2's fork](https://github.com/bsaldivaremc2/hgraph2graph), addressing [issue #47](https://github.com/wengong-jin/hgraph2graph/issues/47). Wrapped in `lisardd.generators.HierVAEGenerator`. |
+| Scorer | MGraphDTA (Yang et al. 2022) — a deep multiscale graph neural network for drug-target binding affinity. Trained on Davis. Wrapped in `lisardd.scoring.MGraphDTAScorer`. Upstream codebase: [`MGraphDTA`](https://github.com/guaguabujianle/MGraphDTA). |
+| Agents | Actor-critic PPO with clipped surrogate loss (γ=0.95); REINFORCE with learnable Gaussian policy. Networks are 3-layer MLPs (BatchNorm + ReLU). See `lisardd.agents`. |
 | Rewards | QED, SA, raw pKd, binarized-and-differentiable pKd, multi-objective composition (default w₁=w₂=0.1). See `lisardd.rewards`. |
-| Targets | JNK3 (PDB 3FI2) and *E. coli* gyrA (UniProt P0AES4). Sequences in `lisardd.targets`. |
+| Targets | JNK3 (PDB 3FI2 chain A, kinase domain) and *E. coli* gyrA (PDB 1AB4 chain A, 59 kDa N-terminal fragment containing the quinolone pocket). Sequences in `lisardd.targets`. |
 | Validation | AutoDock Vina with site-targeted box derived from holo-PDB bound-ligand centroid. See `lisardd.validation.vina` (Stage 6 — being built out). |
 
 ## Repo layout
@@ -118,6 +118,49 @@ That's the entire interface. See `lisardd/generators/hiervae_wrapper.py` and `li
 }
 ```
 
+## References
+
+The LISARDD framework builds on:
+
+```bibtex
+@inproceedings{jin2020hiervae,
+  title={Hierarchical Generation of Molecular Graphs using Structural Motifs},
+  author={Jin, Wengong and Barzilay, Regina and Jaakkola, Tommi},
+  booktitle={Proceedings of the 37th International Conference on Machine Learning},
+  year={2020},
+}
+
+@article{yang2022mgraphdta,
+  title={MGraphDTA: deep multiscale graph neural network for explainable drug-target binding affinity prediction},
+  author={Yang, Ziduo and Zhong, Weihe and Zhao, Lu and Chen, Calvin Yu-Chian},
+  journal={Chemical Science},
+  volume={13},
+  number={3},
+  pages={816--833},
+  year={2022},
+}
+
+@article{haddad2025molrl,
+  title={Targeted molecular generation with latent reinforcement learning},
+  author={Haddad, R. and Litsa, E. E. and Liu, Z. and Yu, X. and Burkhardt, D. and Bhisetti, G.},
+  journal={Scientific Reports},
+  volume={15},
+  number={1},
+  pages={15202},
+  year={2025},
+}
+
+@article{trott2010vina,
+  title={AutoDock Vina: improving the speed and accuracy of docking with a new scoring function, efficient optimization, and multithreading},
+  author={Trott, Oleg and Olson, Arthur J.},
+  journal={Journal of Computational Chemistry},
+  volume={31},
+  number={2},
+  pages={455--461},
+  year={2010},
+}
+```
+
 ## License
 
-See [LICENSE](./LICENSE).
+MIT — see [LICENSE](./LICENSE). Copyright (c) 2025 Valentin Badea, Shyam Chandra, John Lin.
